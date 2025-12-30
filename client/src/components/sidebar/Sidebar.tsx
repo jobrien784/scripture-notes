@@ -1,5 +1,6 @@
-import { useState, KeyboardEvent } from 'react';
-import { BookOpen, Plus, Trash2 } from 'lucide-react';
+import { useState, useMemo, KeyboardEvent } from 'react';
+import { BookOpen, Plus, Trash2, ArrowDownAZ, Clock } from 'lucide-react';
+import { SortMode } from '../../types';
 import { useNotes } from '../../context/NotesContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -8,6 +9,23 @@ export function Sidebar() {
   const { state, selectNote, createNote, deleteNote } = useNotes();
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    return (localStorage.getItem('notesSortMode') as SortMode) || 'recent';
+  });
+
+  const sortedNotes = useMemo(() => {
+    const notes = [...state.notes];
+    if (sortMode === 'alphabetical') {
+      return notes.sort((a, b) => a.title.localeCompare(b.title));
+    }
+    return notes;
+  }, [state.notes, sortMode]);
+
+  const toggleSortMode = () => {
+    const newMode = sortMode === 'alphabetical' ? 'recent' : 'alphabetical';
+    setSortMode(newMode);
+    localStorage.setItem('notesSortMode', newMode);
+  };
 
   const handleCreateNote = async () => {
     if (!newTitle.trim()) return;
@@ -45,10 +63,23 @@ export function Sidebar() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-parchment-200">
-        <h1 className="text-xl font-serif font-semibold text-burgundy-600 flex items-center gap-2">
-          <BookOpen className="w-5 h-5" />
-          Scripture Notes
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-serif font-semibold text-burgundy-600 flex items-center gap-2">
+            <BookOpen className="w-5 h-5" />
+            Scripture Notes
+          </h1>
+          <button
+            onClick={toggleSortMode}
+            className="p-1.5 rounded-md hover:bg-parchment-200 text-ink-600/70 hover:text-burgundy-600 transition-colors"
+            title={sortMode === 'alphabetical' ? 'Sorted A-Z (click for recent)' : 'Sorted by recent (click for A-Z)'}
+          >
+            {sortMode === 'alphabetical' ? (
+              <ArrowDownAZ className="w-4 h-4" />
+            ) : (
+              <Clock className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Notes list */}
@@ -57,7 +88,7 @@ export function Sidebar() {
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin h-6 w-6 border-2 border-burgundy-500 border-t-transparent rounded-full" />
           </div>
-        ) : state.notes.length === 0 && !isCreating ? (
+        ) : sortedNotes.length === 0 && !isCreating ? (
           <div className="text-center py-8 px-4">
             <p className="text-ink-600/70 font-body text-sm">
               No notes yet. Create your first study note!
@@ -65,7 +96,7 @@ export function Sidebar() {
           </div>
         ) : (
           <ul className="space-y-1">
-            {state.notes.map((note) => (
+            {sortedNotes.map((note) => (
               <li key={note.id}>
                 <button
                   onClick={() => selectNote(note.id)}

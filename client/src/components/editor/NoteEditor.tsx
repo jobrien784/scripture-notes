@@ -1,13 +1,16 @@
 import { useCallback } from 'react';
-import { Save, AlertCircle } from 'lucide-react';
+import { AlertCircle, Check, Loader2 } from 'lucide-react';
 import { useNotes } from '../../context/NotesContext';
 import { PaneType, PaneItem } from '../../types';
-import { Button } from '../ui/Button';
 import { PaneCard } from './PaneCard';
 
 export function NoteEditor() {
   const { state, updateTitle, updatePane, saveNote } = useNotes();
-  const { currentNote, isSaving, error } = state;
+  const { currentNote, saveStatus, error } = state;
+
+  const handleSave = useCallback(() => {
+    saveNote();
+  }, [saveNote]);
 
   const handlePaneChange = useCallback(
     (pane: PaneType) => (items: PaneItem[]) => {
@@ -65,8 +68,20 @@ export function NoteEditor() {
           className="w-full text-3xl font-serif font-semibold text-ink-800 bg-transparent border-none outline-none placeholder:text-ink-600/30 focus:ring-0"
           placeholder="Untitled Note"
         />
-        <p className="text-sm text-ink-600/50 font-body mt-1">
-          Last updated {new Date(currentNote.updatedAt).toLocaleString()}
+        <p className="text-sm text-ink-600/50 font-body mt-1 flex items-center gap-2">
+          <span>Last updated {new Date(currentNote.updatedAt).toLocaleString()}</span>
+          {saveStatus === 'saving' && (
+            <span className="flex items-center gap-1 text-ink-600/70 italic animate-fade-in">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Saving...
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span className="flex items-center gap-1 text-green-600 animate-fade-in">
+              <Check className="w-3 h-3" />
+              Saved
+            </span>
+          )}
         </p>
       </div>
 
@@ -76,30 +91,26 @@ export function NoteEditor() {
           type="people"
           items={currentNote.people}
           onItemsChange={handlePaneChange('people')}
+          onSave={handleSave}
         />
         <PaneCard
           type="places"
           items={currentNote.places}
           onItemsChange={handlePaneChange('places')}
+          onSave={handleSave}
         />
         <PaneCard
           type="events"
           items={currentNote.events}
           onItemsChange={handlePaneChange('events')}
+          onSave={handleSave}
         />
         <PaneCard
           type="verses"
           items={currentNote.verses}
           onItemsChange={handlePaneChange('verses')}
+          onSave={handleSave}
         />
-      </div>
-
-      {/* Save button */}
-      <div className="mt-6 flex justify-end">
-        <Button onClick={saveNote} isLoading={isSaving} disabled={isSaving}>
-          <Save className="w-4 h-4" />
-          Save Note
-        </Button>
       </div>
     </div>
   );

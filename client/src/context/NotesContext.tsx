@@ -4,6 +4,7 @@ import {
   useReducer,
   useCallback,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -24,6 +25,7 @@ const initialState: NotesState = {
   currentNote: null,
   isLoading: false,
   isSaving: false,
+  saveStatus: 'idle',
   error: null,
 };
 
@@ -37,6 +39,9 @@ function notesReducer(state: NotesState, action: NotesAction): NotesState {
 
     case 'SET_SAVING':
       return { ...state, isSaving: action.payload };
+
+    case 'SET_SAVE_STATUS':
+      return { ...state, saveStatus: action.payload };
 
     case 'SET_ERROR':
       return { ...state, error: action.payload };
@@ -105,6 +110,12 @@ const NotesContext = createContext<NotesContextValue | null>(null);
 
 export function NotesProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(notesReducer, initialState);
+
+  // Keep a ref to the latest currentNote to avoid stale closure issues in saveNote
+  const currentNoteRef = useRef(state.currentNote);
+  useEffect(() => {
+    currentNoteRef.current = state.currentNote;
+  }, [state.currentNote]);
 
   const fetchNotes = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -196,21 +207,23 @@ export function NotesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveNote = useCallback(async () => {
-    if (!state.currentNote) return;
+    const currentNote = currentNoteRef.current;
+    if (!currentNote) return;
 
     dispatch({ type: 'SET_SAVING', payload: true });
+    dispatch({ type: 'SET_SAVE_STATUS', payload: 'saving' });
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await fetch(`${API_BASE}/notes/${state.currentNote.id}`, {
+      const response = await fetch(`${API_BASE}/notes/${currentNote.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: state.currentNote.title,
-          people: state.currentNote.people,
-          places: state.currentNote.places,
-          events: state.currentNote.events,
-          verses: state.currentNote.verses,
+          title: currentNote.title,
+          people: currentNote.people,
+          places: currentNote.places,
+          events: currentNote.events,
+          verses: currentNote.verses,
         }),
       });
 
@@ -224,17 +237,24 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         updatedAt: note.updatedAt,
       };
 
-      dispatch({ type: 'SET_CURRENT_NOTE', payload: note });
+      // Only update the timestamp, not the full note (to preserve any pending local changes)
       dispatch({ type: 'UPDATE_NOTE_IN_LIST', payload: summary });
+      dispatch({ type: 'SET_SAVE_STATUS', payload: 'saved' });
+
+      // Reset to idle after 2 seconds
+      setTimeout(() => {
+        dispatch({ type: 'SET_SAVE_STATUS', payload: 'idle' });
+      }, 2000);
     } catch (error) {
       dispatch({
         type: 'SET_ERROR',
         payload: error instanceof Error ? error.message : 'Failed to save note',
       });
+      dispatch({ type: 'SET_SAVE_STATUS', payload: 'error' });
     } finally {
       dispatch({ type: 'SET_SAVING', payload: false });
     }
-  }, [state.currentNote]);
+  }, []);
 
   const deleteNote = useCallback(async (id: string) => {
     dispatch({ type: 'SET_SAVING', payload: true });

@@ -8,6 +8,7 @@ interface PaneCardProps {
   type: PaneType;
   items: PaneItem[];
   onItemsChange: (items: PaneItem[]) => void;
+  onSave?: () => void;
 }
 
 const paneConfig: Record<PaneType, { label: string; singular: string; icon: typeof Users; placeholder: string }> = {
@@ -37,7 +38,7 @@ const paneConfig: Record<PaneType, { label: string; singular: string; icon: type
   },
 };
 
-export function PaneCard({ type, items, onItemsChange }: PaneCardProps) {
+export function PaneCard({ type, items, onItemsChange, onSave }: PaneCardProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newContent, setNewContent] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -55,6 +56,8 @@ export function PaneCard({ type, items, onItemsChange }: PaneCardProps) {
     onItemsChange([...items, newItem]);
     setNewContent('');
     setIsAdding(false);
+    // Defer save to next tick to allow state update to process first
+    setTimeout(() => onSave?.(), 0);
   };
 
   const handleAddKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -68,6 +71,8 @@ export function PaneCard({ type, items, onItemsChange }: PaneCardProps) {
 
   const handleRemove = (id: string) => {
     onItemsChange(items.filter((item) => item.id !== id));
+    // Defer save to next tick to allow state update to process first
+    setTimeout(() => onSave?.(), 0);
   };
 
   const handleStartEdit = (item: PaneItem) => {
@@ -84,6 +89,8 @@ export function PaneCard({ type, items, onItemsChange }: PaneCardProps) {
     );
     setEditingId(null);
     setEditingContent('');
+    // Defer save to next tick to allow state update to process first
+    setTimeout(() => onSave?.(), 0);
   };
 
   const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
